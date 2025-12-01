@@ -17,6 +17,12 @@ return new class extends Migration {
             $table->decimal('duration', 10, 2)->nullable();
             $table->integer('campaign')->nullable();
             $table->string('poutcome', 50)->nullable();
+
+            // === [KOLOM BARU DISINI] ===
+            // Disimpan setelah poutcome agar rapi. Tipe text agar muat banyak.
+            $table->text('description')->nullable()->comment('Catatan Sales untuk nasabah ini'); 
+
+            // === Data Ekonomi Makro ===
             $table->decimal('cons_price_idx', 10, 4)->nullable();
             $table->decimal('cons_conf_idx', 10, 4)->nullable();
             $table->decimal('euribor3m', 10, 4)->nullable();
@@ -32,7 +38,7 @@ return new class extends Migration {
 
             // === Constraints ===
             $table->foreign('prospect_status_id', 'fk_prospects_status')
-                  ->references('id')->on('prospect_statuses');
+                  ->references('id')->on('prospect_statuses'); // Pastikan tabel statuses dibuat SEBELUM tabel ini
 
             $table->foreign('created_by_user_id', 'fk_prospects_creator')
                   ->references('id')->on('users');

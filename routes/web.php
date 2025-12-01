@@ -2,8 +2,9 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\PasswordResetRequestController;
+use App\Http\Controllers\PasswordResetRequestController; // Pastikan Controller ini ada
 use App\Http\Controllers\DashboardController; 
+use App\Http\Controllers\SalesController; // Controller Sales
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,29 +17,33 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// --- GROUP DASHBOARD (Sales & Admin) ---
+// --- GROUP DASHBOARD (ADMIN & COMMON) ---
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // 1. Halaman Utama Dashboard (Statistik)
+    // 1. Dashboard Utama (Statistik) - Bisa diakses Admin & Sales
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // 2. Halaman Daftar Prospek (Tabel Data) - [BARU DITAMBAHKAN]
-    Route::get('/dashboard/prospects', [DashboardController::class, 'prospects'])->name('dashboard.prospects');
-    
-    // 3. Action Buttons (Import & Prediksi - Admin)
+    // 2. Action Admin (Import & Prediksi)
     Route::post('/dashboard/import', [DashboardController::class, 'import'])->name('dashboard.import');
     Route::post('/dashboard/predict', [DashboardController::class, 'runPredictions'])->name('dashboard.predict');
 
-    // 4. CRUD Data Prospek
-    Route::put('/dashboard/{id}', [DashboardController::class, 'update'])->name('dashboard.update');
+    // 3. CRUD Data Prospek (Admin)
     Route::post('/dashboard/store', [DashboardController::class, 'store'])->name('dashboard.store');
+    Route::put('/dashboard/{id}', [DashboardController::class, 'update'])->name('dashboard.update');
+});
 
-    // 5. Log Aktivitas Telepon (Sales) - [BARU DITAMBAHKAN]
-    Route::post('/dashboard/log-activity', [DashboardController::class, 'logActivity'])->name('dashboard.logActivity');
+// --- GROUP KHUSUS SALES (Sesuai Request: Controller Terpisah) ---
+Route::middleware(['auth', 'verified'])->group(function () {
+    
+    // Halaman Tabel Khusus Sales (Hanya kolom status & deskripsi)
+    Route::get('/sales/prospects', [SalesController::class, 'index'])->name('sales.prospects.index');
+    
+    // Action Update Khusus Sales
+    Route::put('/sales/prospects/{id}', [SalesController::class, 'update'])->name('sales.prospects.update');
 
 });
 
-// --- GROUP AUTH LAINNYA ---
+// --- GROUP PROFILE & ADMIN TOOLS ---
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -47,10 +52,13 @@ Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class);
     Route::put('/users/{id}/restore', [UserController::class, 'restore'])->name('users.restore');
 
-    // Password Reset (Admin Side)
     Route::get('/admin/reset-password', [PasswordResetRequestController::class, 'index'])->name('admin.reset.index');
     Route::post('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'reset'])->name('admin.reset.action');
     Route::delete('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'destroy'])->name('admin.reset.destroy');
+  
+    Route::post('/sales/activity', [SalesController::class, 'logActivity'])->name('sales.activity.log');
+
+    // =================================================
 });
 
 require __DIR__.'/auth.php';
