@@ -44,5 +44,9 @@ class Prospect extends Model
         // ambil skor paling baru berdasarkan scored_at
         return $this->hasOne(PredictionScore::class, 'prospect_id')->latestOfMany('scored_at');
     }
-    
+    public function latestActivity()
+{
+    return $this->hasOne(ContactActivity::class, 'prospect_id')
+                ->latest('contact_at');
+}
 }

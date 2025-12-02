@@ -39,11 +39,11 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions }) => {
         setIsActive(false); // Stop timer
         
         router.post(route('sales.activity.log'), {
-            prospect_id: prospect.id,
+            prospect_id: prospect.prospect_id,
             status_code: statusCode,
             contact_notes: notes,
             call_duration_sec: duration, // Isi otomatis kolom call_duration_sec
-            contact_channel: 'Phone'
+            contact_channel: 'Phone' // Default Phone
         }, {
             onSuccess: () => {
                 onClose();
@@ -62,7 +62,7 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions }) => {
                             <FaPhone size={20} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-lg">Calling #{prospect.id}</h3>
+                            <h3 className="font-bold text-lg">Calling #{prospect.prospect_id}</h3>
                             <p className="text-orange-100 text-xs">Job: {prospect.job} | Age: {prospect.age}</p>
                         </div>
                     </div>
@@ -122,14 +122,6 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions }) => {
 
 // --- ROW COMPONENT ---
 const SalesRow = ({ item, statusOptions, onCallClick }) => {
-    // Helper Styling
-    const getStatusColor = (code) => {
-        if (['ACCEPTED', 'INTERESTED'].includes(code)) return 'bg-green-100 text-green-800 border-green-200';
-        if (['REFUSED', 'NO_ANSWER', 'INVALID_NUMBER'].includes(code)) return 'bg-red-50 text-red-700 border-red-200';
-        if (code === 'CONTACTED') return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-    };
-
     return (
         <tr className="hover:bg-gray-50 transition-colors border-b border-gray-100 group">
             {/* ACTION COLUMN */}
@@ -146,11 +138,11 @@ const SalesRow = ({ item, statusOptions, onCallClick }) => {
                 </div>
             </td>
 
-            <td className="px-4 py-3 text-gray-500 text-xs font-mono">#{item.id}</td>
+            <td className="px-4 py-3 text-gray-500 text-xs font-mono">#{item.prospect_id}</td>
 
-            {/* STATUS BADGE */}
+            {/* STATUS BADGE - Menggunakan Class Global */}
             <td className="px-4 py-3">
-                <span className={`px-2 py-1 rounded text-[10px] font-bold border ${getStatusColor(item.status_code)}`}>
+                <span className={`status-badge status-${item.status_code.toLowerCase()}`}>
                     {item.status_code}
                 </span>
             </td>
@@ -178,6 +170,39 @@ const SalesRow = ({ item, statusOptions, onCallClick }) => {
             <td className="px-4 py-3 text-gray-700">{item.duration}s</td>
             <td className="px-4 py-3 text-gray-700">{item.campaign}</td>
             <td className="px-4 py-3 text-gray-700">{item.poutcome}</td>
+            
+            {/* Kolom Baru: Telemarketer */}
+            <td className="px-4 py-3 text-gray-600 text-xs">
+                {item.telemarketer_name !== '-' ? (
+                    <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-[10px] font-medium">
+                        {item.telemarketer_name}
+                    </span>
+                ) : (
+                    <span className="text-gray-300">-</span>
+                )}
+            </td>
+            
+            {/* Kolom Baru: Contact Channel */}
+            <td className="px-4 py-3 text-gray-600 text-xs">
+                {item.contact_channel !== '-' ? (
+                    <span className="bg-orange-50 text-orange-700 px-2 py-1 rounded text-[10px] font-medium">
+                        {item.contact_channel}
+                    </span>
+                ) : (
+                    <span className="text-gray-300">-</span>
+                )}
+            </td>
+            
+            {/* Kolom Baru: Call Duration (Detik) */}
+            <td className="px-4 py-3 text-gray-700 font-mono text-xs">
+                {item.call_duration_sec > 0 ? (
+                    <span className="bg-green-50 text-green-700 px-2 py-1 rounded font-bold">
+                        {item.call_duration_sec}s
+                    </span>
+                ) : (
+                    <span className="text-gray-300">-</span>
+                )}
+            </td>
         </tr>
     );
 };
@@ -190,7 +215,7 @@ export default function Prospects({ prospects, statusOptions }) {
 
     // Zoom level fix
     useEffect(() => {
-        document.body.style.zoom = "80%";
+        document.body.style.zoom = "67%";
         return () => { document.body.style.zoom = "100%"; };
     }, []);
 
@@ -240,7 +265,7 @@ export default function Prospects({ prospects, statusOptions }) {
                         <thead className="bg-gray-100 text-gray-600 uppercase text-xs font-bold tracking-wider border-b border-gray-200">
                             <tr>
                                 <th className="px-4 py-3 text-center sticky left-0 bg-gray-100 z-10 border-r border-gray-200 w-24">Call</th>
-                                <th className="px-4 py-3">ID</th>
+                                <th className="px-4 py-3">Prospect_ID</th>
                                 <th className="px-4 py-3">Status</th>
                                 <th className="px-4 py-3 max-w-xs">Deskripsi</th>
                                 <th className="px-4 py-3">Prio</th>
@@ -252,13 +277,16 @@ export default function Prospects({ prospects, statusOptions }) {
                                 <th className="px-4 py-3">Dur (Prev)</th>
                                 <th className="px-4 py-3">Camp</th>
                                 <th className="px-4 py-3">P.Out</th>
+                                <th className="px-4 py-3">Telemarketer_ID</th>
+                                <th className="px-4 py-3">Channel</th>
+                                <th className="px-4 py-3">Call Duration</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 bg-white">
                             {prospects.data.length > 0 ? (
                                 prospects.data.map((item) => (
                                     <SalesRow 
-                                        key={item.id} 
+                                        key={item.prospect_id} 
                                         item={item} 
                                         statusOptions={statusOptions}
                                         onCallClick={handleCallClick}
@@ -266,7 +294,7 @@ export default function Prospects({ prospects, statusOptions }) {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="13" className="px-6 py-10 text-center text-gray-500 italic">
+                                    <td colSpan="16" className="px-6 py-10 text-center text-gray-500 italic">
                                         Belum ada data prospek.
                                     </td>
                                 </tr>

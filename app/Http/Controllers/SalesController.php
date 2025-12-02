@@ -31,16 +31,25 @@ class SalesController extends Controller
             abort(403, 'Akses khusus Sales.');
         }
 
-        $prospects = Prospect::with(['status', 'latestScore'])
+        $prospects = Prospect::with(['status', 'latestScore', 'latestActivity.telemarketer'])
             ->orderByDesc('created_at')
             ->paginate(20)
             ->through(function ($item) {
+                $latestActivity = $item->latestActivity;
+                
                 return [
-                    'id'             => $item->id,
+                    'prospect_id'    => $item->id, // Ganti dari 'id' menjadi 'prospect_id'
                     'status_code'    => $item->status ? $item->status->status_code : 'NEW',
                     'description'    => $item->description, 
                     'score'          => $item->latestScore ? $item->latestScore->score_value : null,
                     'priority'       => $item->latestScore ? $item->latestScore->priority : null,
+                    
+                    // Data Aktivitas Terakhir
+                    'telemarketer_name' => $latestActivity && $latestActivity->telemarketer 
+                                          ? $latestActivity->telemarketer->name 
+                                          : '-',
+                    'contact_channel'   => $latestActivity ? $latestActivity->contact_channel : '-',
+                    'call_duration_sec' => $latestActivity ? $latestActivity->call_duration_sec : 0,
                     
                     // Data Nasabah
                     'age'            => $item->age,
@@ -110,9 +119,9 @@ class SalesController extends Controller
             // 2. Simpan Log Sejarah ke Tabel contact_activities
             ContactActivity::create([
                 'prospect_id'        => $prospect->id,
-                'telemarketer_id'    => $request->user()->id,
+                'telemarketer_id'    => $request->user()->id, // Ambil dari user yang login
                 'prospect_status_id' => $statusId, // ID status yang baru diupdate/dibuat
-                'contact_channel'    => $validated['contact_channel'],
+                'contact_channel'    => $validated['contact_channel'], // Default 'Phone' dari frontend
                 'contact_notes'      => $validated['contact_notes'],
                 'call_duration_sec'  => $validated['call_duration_sec'], // Isi otomatis dari timer
                 'contact_at'         => now(),
