@@ -13,9 +13,24 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+    /**
+     * Menampilkan Dashboard dengan Filter & Pagination
+     */
     public function index(Request $request)
     {
-        // 1. Statistik
+        // 1. Query Dasar
+        $query = Prospect::with(['status', 'latestScore']);
+
+        // --- FILTER LOGIC ---
+        // Jika ada parameter 'status' dari dropdown frontend, filter query
+        if ($request->has('status') && $request->status != '') {
+            $query->whereHas('status', function($q) use ($request) {
+                $q->where('status_code', $request->status);
+            });
+        }
+
+        // 2. Statistik (Global)
+        // Hitung total tanpa terpengaruh filter agar user tetap tahu total data di DB
         $stats = [
             'total_prospects' => Prospect::count(),
             'processed'       => Prospect::has('latestScore')->count(),
@@ -24,10 +39,16 @@ class DashboardController extends Controller
                                 })->count(),
         ];
 
-        // 2. Ambil data & Format ulang
-        $prospects = Prospect::with(['status', 'latestScore'])
-            ->orderByDesc('id')
+        // 3. Ambil Opsi Status untuk Dropdown Filter
+        $statusOptions = ProspectStatus::select('status_code')
+            ->distinct()
+            ->orderBy('status_code')
+            ->pluck('status_code');
+
+        // 4. Pagination & Formatting Data
+        $prospects = $query->orderByDesc('id')
             ->paginate(50)
+            ->withQueryString() // Penting: agar filter status tidak hilang saat pindah halaman
             ->through(function ($item) {
                 return [
                     'id'             => $item->id,
@@ -57,15 +78,18 @@ class DashboardController extends Controller
             });
 
         return Inertia::render('Dashboard', [
-            'stats'     => $stats,
-            'prospects' => $prospects,
+            'stats'         => $stats,
+            'prospects'     => $prospects,
+            'statusOptions' => $statusOptions,           // Kirim opsi status ke frontend
+            'filters'       => $request->only(['status']), // Kirim state filter saat ini
         ]);
     }
 
-    // --- FITUR TAMBAH MANUAL (BARU) ---
+    /**
+     * Fitur Tambah Manual
+     */
     public function store(Request $request)
     {
-        // Validasi input
         $validated = $request->validate([
             'age'            => 'required|numeric',
             'job'            => 'required|string',
@@ -82,17 +106,14 @@ class DashboardController extends Controller
 
         DB::beginTransaction();
         try {
-            // Ambil status default 'NEW'
             $defaultStatus = ProspectStatus::firstOrCreate(
                 ['status_code' => 'NEW'],
                 ['status_type' => 'open']
             );
 
-            // Tambah field meta
             $validated['prospect_status_id'] = $defaultStatus->id;
             $validated['created_by_user_id'] = auth()->id();
 
-            // Simpan Data
             Prospect::create($validated);
 
             DB::commit();
@@ -103,10 +124,11 @@ class DashboardController extends Controller
         }
     }
 
-    // --- FITUR UPDATE DATA ---
+    /**
+     * Fitur Update Data
+     */
     public function update(Request $request, $id)
     {
-        // Validasi input editable
         $validated = $request->validate([
             'age'            => 'numeric|nullable',
             'job'            => 'string|nullable',
@@ -128,21 +150,89 @@ class DashboardController extends Controller
             // 1. Update Data Prospek
             $prospect->update($validated);
 
-            // 2. HAPUS HASIL PREDIKSI LAMA (PENTING)
-            // Karena data berubah, prediksi lama tidak valid lagi.
+            // 2. Hapus hasil prediksi lama karena data berubah (agar diprediksi ulang nanti)
             $prospect->scores()->delete();
 
             DB::commit();
-            return back()->with('success', 'Data diperbarui. Score & Priority di-reset karena data berubah.');
+            return back()->with('success', 'Data diperbarui. Score di-reset.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Gagal update: ' . $e->getMessage());
         }
     }
 
-    // --- FITUR IMPORT CSV ---
+    /**
+     * [BARU] Fitur Hapus Satuan (Single Delete)
+     */
+    public function destroy($id)
+    {
+        try {
+            $prospect = Prospect::findOrFail($id);
+            $prospect->delete();
+            return back()->with('success', 'Data prospek berhasil dihapus.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menghapus: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * [BARU] Fitur Hapus Batch (Selection vs All Filtered)
+     */
+    public function bulkDestroy(Request $request)
+    {
+        // 1. Set Unlimited Time agar tidak timeout jika hapus ribuan data
+        ini_set('max_execution_time', 0);
+        set_time_limit(0);
+
+        // Ambil tipe hapus: 'selection' (halaman ini) atau 'all_filtered' (semua halaman)
+        $type = $request->input('type'); 
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+
+            if ($type === 'selection') {
+                // --- OPSI 1: Hapus ID yang dipilih (Checkbox Halaman Ini) ---
+                $ids = $request->input('ids', []);
+                if (empty($ids)) return back()->with('error', 'Tidak ada data yang dipilih.');
+                
+                Prospect::whereIn('id', $ids)->delete();
+                $count = count($ids);
+
+            } elseif ($type === 'all_filtered') {
+                // --- OPSI 2: Hapus SEMUA data berdasarkan Filter (Semua Halaman) ---
+                $statusFilter = $request->input('status');
+                
+                $query = Prospect::query();
+                
+                // Terapkan logika filter yang SAMA PERSIS dengan method index
+                if ($statusFilter) {
+                    $query->whereHas('status', function($q) use ($statusFilter) {
+                        $q->where('status_code', $statusFilter);
+                    });
+                }
+                
+                // Eksekusi delete massal
+                $count = $query->delete();
+            }
+
+            DB::commit();
+            return back()->with('success', "Berhasil menghapus {$count} data prospek.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal hapus batch: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Fitur Import CSV
+     */
     public function import(Request $request)
     {
+        ini_set('max_execution_time', 0);
+        set_time_limit(0);
+
         if ($request->user()->role !== 'admin') {
             abort(403, 'Akses Ditolak.');
         }
@@ -248,14 +338,17 @@ class DashboardController extends Controller
         }
     }
 
-    // --- FITUR PREDIKSI BATCH ---
+    /**
+     * Fitur Run Predictions (Batch ke Python API)
+     */
     public function runPredictions(Request $request)
     {
         if ($request->user()->role !== 'admin') {
             abort(403, 'Akses Ditolak.');
         }
 
-        set_time_limit(300); 
+        ini_set('max_execution_time', 0); 
+        set_time_limit(0); 
 
         $featureColumns = [
             'age', 'job', 'education', 'month', 'duration', 'campaign',
@@ -267,7 +360,7 @@ class DashboardController extends Controller
 
         $query = Prospect::whereDoesntHave('scores');
 
-        $query->chunkById(1000, function ($prospects) use (&$totalProcessed, &$totalFailed, $featureColumns) {
+        $query->chunkById(2000, function ($prospects) use (&$totalProcessed, &$totalFailed, $featureColumns) {
             
             $payload = [];
 
@@ -295,31 +388,36 @@ class DashboardController extends Controller
             if (empty($payload)) return;
 
             try {
-                $response = Http::timeout(120)->post('http://127.0.0.1:8001/predict_batch', [
+                $response = Http::timeout(300)->post('http://127.0.0.1:8001/predict_batch', [
                     'data' => $payload
                 ]);
 
                 if ($response->successful()) {
                     $results = $response->json();
-
+                    
                     foreach ($results as $res) {
-                        $pId  = $res['id'];
-                        $prob = (float) $res['probability'];
-                        
-                        if ($prob >= 0.8) $priority = 1;
-                        elseif ($prob >= 0.5) $priority = 2;
-                        else $priority = 3;
+                        try {
+                            $pId  = $res['id'];
+                            $prob = (float) $res['probability'];
+                            
+                            if ($prob >= 0.8) $priority = 1;
+                            elseif ($prob >= 0.5) $priority = 2;
+                            else $priority = 3;
 
-                        PredictionScore::create([
-                            'prospect_id'       => $pId,
-                            'model_version'     => 'decision_tree_v1',
-                            'score_value'       => $prob,
-                            'priority'          => $priority,
-                            'scored_by_user_id' => auth()->id() ?? null,
-                        ]);
-                        
-                        $totalProcessed++;
+                            PredictionScore::create([
+                                'prospect_id'       => $pId,
+                                'model_version'     => 'decision_tree_v1',
+                                'score_value'       => $prob,
+                                'priority'          => $priority,
+                                'scored_by_user_id' => auth()->id() ?? null,
+                            ]);
+
+                            $totalProcessed++;
+                        } catch (\Exception $e) {
+                            \Log::error("Gagal simpan score ID {$res['id']}: " . $e->getMessage());
+                        }
                     }
+
                 } else {
                     \Log::error("Python API Error: " . $response->body());
                     $totalFailed += count($payload);

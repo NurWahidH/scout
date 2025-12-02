@@ -55,10 +55,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/reset-password', [PasswordResetRequestController::class, 'index'])->name('admin.reset.index');
     Route::post('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'reset'])->name('admin.reset.action');
     Route::delete('/admin/reset-password/{id}', [PasswordResetRequestController::class, 'destroy'])->name('admin.reset.destroy');
+
+    Route::delete('/dashboard/{id}', [DashboardController::class, 'destroy'])->name('dashboard.destroy');
+    Route::post('/dashboard/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('dashboard.bulk-destroy');
   
     Route::post('/sales/activity', [SalesController::class, 'logActivity'])->name('sales.activity.log');
 
-    // =================================================
 });
 
 require __DIR__.'/auth.php';

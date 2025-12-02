@@ -17,10 +17,7 @@ return new class extends Migration {
             $table->decimal('duration', 10, 2)->nullable();
             $table->integer('campaign')->nullable();
             $table->string('poutcome', 50)->nullable();
-
-            // === [KOLOM BARU DISINI] ===
-            // Disimpan setelah poutcome agar rapi. Tipe text agar muat banyak.
-            $table->text('description')->nullable()->comment('Catatan Sales untuk nasabah ini'); 
+            $table->text('description')->nullable();
 
             // === Data Ekonomi Makro ===
             $table->decimal('cons_price_idx', 10, 4)->nullable();

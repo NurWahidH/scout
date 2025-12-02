@@ -81,10 +81,10 @@ class DatabaseSeeder extends Seeder
             ['code' => 'NEW',           'type' => 'open',            'desc' => 'Data baru, belum dihubungi'],
             ['code' => 'CONTACTED',     'type' => 'open',            'desc' => 'Sudah ditelepon, belum ada keputusan'],
             ['code' => 'INTERESTED',    'type' => 'open',            'desc' => 'Nasabah tertarik, butuh follow up'],
-            ['code' => 'ACCEPTED',      'type' => 'closed_accepted', 'desc' => 'Nasabah setuju mendaftar'],
-            ['code' => 'REFUSED',       'type' => 'closed_refused',  'desc' => 'Nasabah menolak penawaran'],
-            ['code' => 'NO_ANSWER',     'type' => 'closed_refused',  'desc' => 'Telepon tidak diangkat berkali-kali'],
-            ['code' => 'INVALID_NUMBER','type' => 'closed_refused',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
+            ['code' => 'ACCEPTED',      'type' => 'closed',  'desc' => 'Nasabah setuju mendaftar'],
+            ['code' => 'REFUSED',       'type' => 'closed',  'desc' => 'Nasabah menolak penawaran'],
+            ['code' => 'NO_ANSWER',     'type' => 'closed',  'desc' => 'Telepon tidak diangkat berkali-kali'],
+            ['code' => 'INVALID_NUMBER','type' => 'closed',  'desc' => 'Nomor telepon salah/tidak terdaftar'],
         ];
 
         foreach ($statuses as $status) {

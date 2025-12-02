@@ -9,7 +9,7 @@ return new class extends Migration {
         Schema::create('prospect_statuses', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('status_code', 50)->unique();
-            $table->enum('status_type', ['open', 'closed_accepted', 'closed_refused']);
+            $table->enum('status_type', ['open', 'closed']);
             $table->text('description')->nullable();
 
             $table->unsignedBigInteger('updated_by_user_id')->nullable();
