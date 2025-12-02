@@ -60,7 +60,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/dashboard/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('dashboard.bulk-destroy');
   
     Route::post('/sales/activity', [SalesController::class, 'logActivity'])->name('sales.activity.log');
-
+    Route::delete('/prospects/{id}', [DashboardController::class, 'destroy'])->name('prospects.destroy');
+    Route::post('/prospects/bulk-destroy', [DashboardController::class, 'bulkDestroy'])->name('prospects.bulk-destroy');
 });
+
 
 require __DIR__.'/auth.php';
