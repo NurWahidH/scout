@@ -63,7 +63,9 @@ const CallTrackingModal = ({ isOpen, onClose, prospect, statusOptions }) => {
                         </div>
                         <div>
                             <h3 className="font-bold text-lg">Calling #{prospect.prospect_id}</h3>
-                            <p className="text-orange-100 text-xs">Job: {prospect.job} | Age: {prospect.age}</p>
+                            <p className="text-orange-100 text-xs">
+                                Job: {prospect.job || '-'} | Age: {prospect.age || '-'}
+                            </p>
                         </div>
                     </div>
                     <div className="text-3xl font-mono font-bold tracking-widest">
@@ -163,13 +165,22 @@ const SalesRow = ({ item, statusOptions, onCallClick }) => {
                 {item.score ? (item.score * 100).toFixed(0) + '%' : '-'}
             </td>
 
-            <td className="px-4 py-3 text-gray-700">{item.age}</td>
-            <td className="px-4 py-3 text-gray-700 capitalize">{item.job.replace('.', '')}</td>
-            <td className="px-4 py-3 text-gray-700 capitalize">{item.education.replace(/_/g, ' ')}</td>
-            <td className="px-4 py-3 text-gray-700 uppercase">{item.month}</td>
+            <td className="px-4 py-3 text-gray-700">{item.age || '-'}</td>
+            
+            {/* FIX: Handle null pada Job */}
+            <td className="px-4 py-3 text-gray-700 capitalize">
+                {item.job ? item.job.replace('.', '') : <span className="text-gray-300">-</span>}
+            </td>
+            
+            {/* FIX: Handle null pada Education */}
+            <td className="px-4 py-3 text-gray-700 capitalize">
+                {item.education ? item.education.replace(/_/g, ' ') : <span className="text-gray-300">-</span>}
+            </td>
+            
+            <td className="px-4 py-3 text-gray-700 uppercase">{item.month || '-'}</td>
             <td className="px-4 py-3 text-gray-700">{item.duration}s</td>
-            <td className="px-4 py-3 text-gray-700">{item.campaign}</td>
-            <td className="px-4 py-3 text-gray-700">{item.poutcome}</td>
+            <td className="px-4 py-3 text-gray-700">{item.campaign || '-'}</td>
+            <td className="px-4 py-3 text-gray-700">{item.poutcome || '-'}</td>
             
             {/* Kolom Baru: Telemarketer */}
             <td className="px-4 py-3 text-gray-600 text-xs">
